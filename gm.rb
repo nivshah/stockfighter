@@ -17,6 +17,10 @@ module StockFighter
             "#{BaseUrl}/levels/#{self.level_name}"
         end
 
+        def instance_url
+            "#{BaseUrl}/instances/#{self.instance_id}"
+        end
+
         def start
             response = HTTParty.post(self.level_url,
                           :cookies => {"api_key" => self.api_key}
@@ -31,6 +35,9 @@ module StockFighter
         end
 
         def stop
+            HTTParty.post("#{self.instance_url}/stop",
+                          :cookies => {"api_key" => self.api_key}
+                         )
         end
 
         def resume

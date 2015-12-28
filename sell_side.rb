@@ -5,16 +5,17 @@ require "redis"
 require 'thread'
 require 'faye/websocket'
 require 'eventmachine'
+require_relative 'gm'
 
 Thread.abort_on_exception=true
 
 class MarketMaker
-    attr_accessor :account, :venue, :stock
+    attr_accessor :api_key, :account, :venue, :stock
     BaseUrl = "https://api.stockfighter.io/ob/api"
     BaseWebSocket = "wss://api.stockfighter.io/ob/api/ws"
-    ApiKey = "5e54239545b1adc32cea423e94a1ccc083110abe"
 
-    def initialize(account, venue, stock)
+    def initialize(api_key, account, venue, stock)
+        self.api_key = api_key
         self.account = account
         self.venue = venue
         self.stock = stock
@@ -30,10 +31,6 @@ class MarketMaker
 
     def transaction_url
         "#{BaseUrl}/venues/#{self.venue}/stocks/#{self.stock}/orders"
-    end
-
-    def apiKey
-        ApiKey
     end
 end
 
@@ -53,7 +50,7 @@ class Ask
 
         sell = HTTParty.post(market.transaction_url,
                             :body => JSON.dump(order),
-                            :headers => {"X-Starfighter-Authorization" => market.apiKey}
+                            :headers => {"X-Starfighter-Authorization" => market.api_key}
                             )
 
         self.order_id = sell.parsed_response['id'].to_i
@@ -97,7 +94,7 @@ class AskWorker
             # update position with the last_order status
 
             delete = HTTParty.delete(self.last_order_url,
-                            :headers => {"X-Starfighter-Authorization" => self.market.apiKey}
+                            :headers => {"X-Starfighter-Authorization" => self.market.api_key}
                            )
 
             quantity = delete.parsed_response['totalFilled'].to_i
@@ -126,7 +123,7 @@ class Bid
 
         buy = HTTParty.post(market.transaction_url,
                             :body => JSON.dump(order),
-                            :headers => {"X-Starfighter-Authorization" => market.apiKey}
+                            :headers => {"X-Starfighter-Authorization" => market.api_key}
                             )
 
         self.order_id = buy.parsed_response['id'].to_i
@@ -169,7 +166,7 @@ class BidWorker
         if self.last_order_id
             # nuke this order
             delete = HTTParty.delete(self.last_order_url,
-                            :headers => {"X-Starfighter-Authorization" => self.market.apiKey}
+                            :headers => {"X-Starfighter-Authorization" => self.market.api_key}
                             )
 
             quantity = delete.parsed_response['totalFilled'].to_i
@@ -237,11 +234,10 @@ class Position
 end
 
 # changes every time you reset the level
-account = "NTC72404488"
-venue = "DEIMEX"
-stock = "FBL"
+api_key = "5e54239545b1adc32cea423e94a1ccc083110abe"
+gm = StockFighter::GameManager.new(api_key, "sell_side")
 
-market = MarketMaker.new(account, venue, stock)
+market = MarketMaker.new(api_key, gm.account, gm.venue, gm.ticker)
 quote = Quote.new
 bid_worker = BidWorker.new(market)
 ask_worker = AskWorker.new(market)
@@ -255,6 +251,12 @@ Thread.new {
             quote.latest = JSON.parse(event.data)['quote']
         end
     }
+}
+
+trap("INT") {
+    puts "Shutting down..."
+    gm.stop
+    exit
 }
 
 while true
