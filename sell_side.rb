@@ -61,9 +61,9 @@ class Ask
 
     def calculate_price(quote)
         if quote['last']
-            return quote['last'].to_i + 1
+            return quote['last'].to_i + 5
         elsif quote['bid']
-            return quote['bid'].to_i + 1
+            return quote['bid'].to_i + 5
         end
     end
 
@@ -134,9 +134,9 @@ class Bid
 
     def calculate_price(quote)
         if quote['last']
-            return quote['last'].to_i - 1
+            return quote['last'].to_i - 5
         elsif quote['ask']
-            return quote['ask'].to_i - 1
+            return quote['ask'].to_i - 5
         end
     end
 
@@ -210,8 +210,8 @@ class Position
 
         begin
             redis.watch(RedisKey)
+            new_count = self.get_shares - quantity
             redis.multi
-            new_count = redis.get(RedisKey).to_i - quantity
             # puts "SELLING #{self.get_shares} #{quantity} #{new_count}"
             redis.set(RedisKey, new_count)
             redis.exec
@@ -225,8 +225,8 @@ class Position
 
         begin
             redis.watch(RedisKey)
+            new_count = self.get_shares + quantity
             redis.multi
-            new_count = redis.get(RedisKey).to_i + quantity
             # puts "BUYING #{self.get_shares} #{quantity} #{new_count}"
             redis.set(RedisKey, new_count)
             redis.exec
@@ -237,9 +237,9 @@ class Position
 end
 
 # changes every time you reset the level
-account = "WAB15078684"
-venue = "UNICBEX"
-stock = "GHOI"
+account = "NTC72404488"
+venue = "DEIMEX"
+stock = "FBL"
 
 market = MarketMaker.new(account, venue, stock)
 quote = Quote.new
